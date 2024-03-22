@@ -2,25 +2,30 @@
 session_start();
 require_once "database.php"; // Include your database connection file
 
-// Check if user is logged in
-if (!isset($_SESSION["user"])) {
-    header("Location: login.php");
+// Check if user is logged in as an admin (you can modify this check based on your admin authentication logic)
+if (!isset($_SESSION["user"]) || $_SESSION["user"]["role"] !== "admin") {
+    header("Location: login.php"); // Redirect unauthorized users to login page
     exit();
 }
 
-// Retrieve user ID from session
-$user_id = $_SESSION["user"]["id"];
+// Retrieve user ID from session (if you want to view risks for a specific user)
+// $user_id = $_SESSION["user"]["id"];
 
-// Prepare the SQL statement to retrieve risks for the current user
-$sql = "SELECT * FROM message WHERE user_id = ?";
+// Prepare the SQL statement to retrieve all risks submitted by users
+$sql = "SELECT * FROM message"; // Modify the query to fetch all risks
+
+// Optionally, if you want to view risks for a specific user, you can modify the query like this:
+// $sql = "SELECT * FROM message WHERE user_id = ?";
+
 $stmt = mysqli_prepare($conn, $sql);
-
 if (!$stmt) {
     die("Error: Unable to prepare SQL statement. " . mysqli_error($conn));
 }
 
-// Bind the user ID parameter
-mysqli_stmt_bind_param($stmt, "i", $user_id);
+// Optionally, if you want to view risks for a specific user, bind the user ID parameter
+// if ($user_id) {
+//     mysqli_stmt_bind_param($stmt, "i", $user_id);
+// }
 
 // Execute the SQL statement
 if (mysqli_stmt_execute($stmt)) {
@@ -29,11 +34,13 @@ if (mysqli_stmt_execute($stmt)) {
 
     // Check if any risks are found
     if (mysqli_num_rows($result) > 0) {
-        echo "<h2>Submitted Risks</h2>";
+        echo "<h2>All Submitted Risks</h2>";
         echo "<table border='1'>";
-        echo "<tr><th>Subject</th><th>Category</th><th>Risk Mapping</th><th>Current Impact</th><th>Current Likelihood</th><th>Risk Source</th><th>Control Regulation</th><th>Control Number</th><th>Risk Scoring Method</th><th>Owner</th></tr>";
+        echo "<tr><th>User ID</th><th>Subject</th><th>Category</th><th>Risk Mapping</th><th>Current Impact</th><th>Current Likelihood</th><th>Risk Source</th><th>Control Regulation</th><th>Control Number</th><th>Risk Scoring Method</th><th>Owner</th><th>Action</th></tr>";
+
         while ($row = mysqli_fetch_assoc($result)) {
             echo "<tr>";
+            echo "<td>{$row['user_id']}</td>"; // Display user ID
             echo "<td>{$row['subject']}</td>";
             echo "<td>{$row['category']}</td>";
             echo "<td>{$row['riskMapping']}</td>";
@@ -44,11 +51,16 @@ if (mysqli_stmt_execute($stmt)) {
             echo "<td>{$row['controlno']}</td>";
             echo "<td>{$row['scoringmethod']}</td>";
             echo "<td>{$row['owner']}</td>";
+
+            // Add edit and delete options
+            echo "<td><a href='edit-form.php?id={$row['id']}'>Edit</a> | <a href='delete_risk.php?id={$row['id']}' onclick='return confirm(\"Are you sure you want to delete this risk?\")'>Delete</a></td>";
+
             echo "</tr>";
         }
+
         echo "</table>";
     } else {
-        echo "<p>No submitted risks found for user ID: $user_id</p>";
+        echo "<p>No submitted risks found.</p>";
     }
 } else {
     // Error executing the SQL statement
@@ -58,5 +70,4 @@ if (mysqli_stmt_execute($stmt)) {
 // Close the prepared statement and database connection
 mysqli_stmt_close($stmt);
 mysqli_close($conn);
-
 ?>
